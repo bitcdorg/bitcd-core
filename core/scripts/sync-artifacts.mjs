@@ -20,6 +20,11 @@ const CASM = "bitcd_Bitcd.compiled_contract_class.json";
 
 mkdirSync(OUT, { recursive: true });
 const sierra = JSON.parse(readFileSync(resolve(TARGET, SIERRA), "utf8"));
+// The Cairo compiler version is recorded in the CASM file; the Sierra class
+// carries none. JSON.stringify drops an undefined field, so refuse to stamp
+// a manifest without it.
+const { compiler_version: compilerVersion } = JSON.parse(readFileSync(resolve(TARGET, CASM), "utf8"));
+if (!compilerVersion) throw new Error(`${CASM} carries no compiler_version`);
 copyFileSync(resolve(TARGET, SIERRA), resolve(OUT, SIERRA));
 copyFileSync(resolve(TARGET, CASM), resolve(OUT, CASM));
 
@@ -28,7 +33,7 @@ const gitCommit = execSync("git rev-parse HEAD", { cwd: REPO }).toString().trim(
 const manifest = {
   classHash,
   gitCommit,
-  compilerVersion: sierra.compiler_version,
+  compilerVersion,
   syncedAt: new Date().toISOString(),
 };
 writeFileSync(resolve(OUT, "MANIFEST.json"), JSON.stringify(manifest, null, 2) + "\n");

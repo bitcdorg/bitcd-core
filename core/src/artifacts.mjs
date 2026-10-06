@@ -8,8 +8,8 @@
 //      `pnpm sync-artifacts` at the repo root)
 //
 // The embedded copy is what lets a consumer deploy + bind the contract with no
-// Cairo toolchain. core/artifacts/MANIFEST.json records the class hash and the
-// commit it was built from — the staleness guard tying the embedded class to the
+// Cairo toolchain. core/artifacts/MANIFEST.json records {classHash, gitCommit,
+// compilerVersion, syncedAt} — the staleness guard tying the embedded class to the
 // audited commit (the deep-audit gate applies to a class hash, not a directory).
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -42,9 +42,9 @@ export const sierra = () => JSON.parse(readFileSync(SIERRA_FILE(), "utf8"));
 export const casm = () => JSON.parse(readFileSync(CASM_FILE(), "utf8"));
 export const abi = () => sierra().abi;
 
-/// The manifest of the embedded artifacts (classHash, gitCommit, and what
-/// sync-artifacts stamps beside them), or null when the file is absent. It
-/// describes the bundled class whichever source `artifactSource()` reports.
+/// The manifest of the embedded artifacts ({classHash, gitCommit,
+/// compilerVersion, syncedAt}), or null when the file is absent. It describes
+/// the bundled class whichever source `artifactSource()` reports.
 export function manifest() {
   const f = resolve(EMBEDDED_DIR, "MANIFEST.json");
   return existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : null;
