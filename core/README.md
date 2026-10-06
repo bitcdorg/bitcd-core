@@ -21,7 +21,7 @@ a schema over the primitive is the code *you* write.
 | import | what you get |
 |---|---|
 | `@bitcd/core/protocol` | `ACTION` / `CONDITION_FELT` felt maps, `GLOBAL`, `str()`, `digestOf()`, `SHORTSTRING_MAX` + `assertShortString()` |
-| `@bitcd/core/client` | `provider()`, `account()`, `bitcdContract()` (embedded ABI), `loadDeployment()`, `approveWithSigs()`, `applyNoProxy()` |
+| `@bitcd/core/client` | `provider()`, `account()`, `bitcdContract()` (embedded ABI), `loadDeployment()`, `approveWithSigs()`, `waitSucceeded()` (a reverted transaction throws), `applyNoProxy()` |
 | `@bitcd/core/snip12` | the intent-binding typed data: `paramsHash`, `approvalTypedData`, `signApproval`, `assertRoundTrip` (byte-for-byte matched to `contracts/src/snip12.cairo`) |
 | `@bitcd/core/reconcile` | the executor engine: `reconcileOnce`, `driftCheckOnce`, `makeChainOps`, `deriveCondition`, `renderConfig`, `CONDITION` (strings) |
 | `@bitcd/core/fleet` | the predicate-voter engine + fleet-daemon shell: `decide`, `voteOnce`, `verifiedParams`, `makeVoterOps`, `makeFleetPeer`, `composePredicates`, `VOTE` (votes are reproducible predicates, never judgments) |

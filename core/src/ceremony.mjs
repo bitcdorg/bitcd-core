@@ -9,6 +9,7 @@
 // VERIFY THE SEED BY READING IT BACK before renouncing on anything irreversible.
 import { writeFileSync } from "node:fs";
 import { artifactSource, casm as embeddedCasm, manifest as bundledManifest, sierra as embeddedSierra } from "./artifacts.mjs";
+import { waitSucceeded } from "./tx.mjs";
 
 /// Declare + deploy with `owner` (an Account) as the transient super-admin, and
 /// record {address, classHash, owner, rpc} at `deploymentFile` (if given).
@@ -68,11 +69,12 @@ export const policySpec = (threshold, role, min_humans, max_per_operator, allow_
 /// Seed signers + policies through an OWNER-connected contract handle, then
 /// optionally renounce. `signers` = [{ label?, address, signer }] (signer =
 /// signerSpec(...)); `policies` = [{ label?, prefix, action, policy }].
-/// Every tx is awaited (the seed must land in order before renounce).
+/// Every tx is awaited (the seed must land in order before renounce), and a
+/// reverted one stops the ceremony there: nothing after it is sent.
 export async function runCeremony({ contract, provider, signers = [], policies = [], renounce = false, log = () => {} }) {
   async function send(label, call) {
     const { transaction_hash } = await call;
-    await provider.waitForTransaction(transaction_hash);
+    await waitSucceeded(provider, transaction_hash, label);
     log(`  ok  ${label}  (${transaction_hash.slice(0, 10)})`);
   }
   for (const s of signers) {

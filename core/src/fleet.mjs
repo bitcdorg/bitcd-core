@@ -25,6 +25,10 @@ import { fetchAllEvents, projectProposals } from "./events.mjs";
 import { assertRoundTrip } from "./snip12.mjs";
 import { str } from "./protocol.mjs";
 import { pendingParamsKey } from "./pending.mjs";
+import { waitSucceeded } from "./tx.mjs";
+
+// A consumer that relays its own transactions beside a fleet waits the same way.
+export { waitSucceeded };
 
 /// Vote outcomes. WITHHOLD (predicate ran and failed) is deliberately distinct
 /// from ABSTAIN (not my prefix / not eligible): a WITHHOLD is the FAIL-beat
@@ -106,16 +110,7 @@ export async function verifiedParams({ view, store, chainId, contractAddress, pr
 /// Chain IO for one voter identity — the reconcile engine's makeChainOps analog.
 ///   view    read-only Contract (bitcd ABI on a provider)
 ///   writer  Contract connected to the voter's account
-///   provider RpcProvider (awaits the vote tx)
-/// Wait for a transaction and fail unless it executed: a node reports a
-/// reverted transaction as accepted, and a reverted vote must not count as cast.
-export async function waitSucceeded(provider, transactionHash) {
-  const r = await provider.waitForTransaction(transactionHash);
-  const status = r?.execution_status ?? r?.value?.execution_status;
-  if (status === "REVERTED") throw new Error(`transaction ${transactionHash} reverted: ${r?.revert_reason ?? r?.value?.revert_reason ?? "no reason given"}`);
-  return r;
-}
-
+///   provider RpcProvider (awaits the vote tx; a reverted vote is not a cast vote)
 export function makeVoterOps({ view, writer, provider }) {
   return {
     getSigner: async (address) => {

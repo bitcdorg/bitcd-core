@@ -8,8 +8,10 @@ import { readFileSync } from "node:fs";
 import { Account, Contract, RpcProvider } from "starknet";
 import { abi as embeddedAbi } from "./artifacts.mjs";
 import { assertRoundTrip, signApproval } from "./snip12.mjs";
+import { waitSucceeded } from "./tx.mjs";
 
 export { str } from "./protocol.mjs";
+export { waitSucceeded };
 
 /// Add hosts to NO_PROXY/no_proxy so a corporate/localhost proxy never intercepts
 /// RPC. EXPLICIT — importing this module never mutates the environment; call it
@@ -64,6 +66,7 @@ export async function approveWithSigs({
   }
   const c = bitcdContract(contractAddress, account(relayer ?? signers[0], p), { abi });
   const { transaction_hash } = await c.approve_sigs(proposalId, approvals);
-  await p.waitForTransaction(transaction_hash);
+  // A reverted relay must not read as signatures that landed.
+  await waitSucceeded(p, transaction_hash, "approve_sigs");
   return transaction_hash;
 }

@@ -25,6 +25,7 @@
 // promotes the aggregate only on k-of-n agreement on the same (revision, hash).
 import { num, shortString } from "starknet";
 import { digestOf } from "./protocol.mjs";
+import { waitSucceeded } from "./tx.mjs";
 
 /// Observed-state conditions AS STRINGS (what `ops.setStatus` receives and the
 /// folds compare). The felt map the contract takes is CONDITION_FELT in ./protocol.
@@ -235,7 +236,9 @@ export function makeChainOps({
       const { transaction_hash } = await writer.set_status(
         valueKey, observed_revision, applied_hash, str(condition), str(String(reason).slice(0, 31)),
       );
-      await provider.waitForTransaction(transaction_hash);
+      // A reverted attestation is not an attestation: the caller must not
+      // go on as if the chain recorded it.
+      await waitSucceeded(provider, transaction_hash, "set_status");
     },
     log,
   };

@@ -46,6 +46,7 @@ import { ORG_SCHEMA, compileOrg } from "./org/compile.mjs";
 import { ORG_SCHEMA_FELT, canonicalOrgManifest, manifestSpecKey } from "./org/manifest.mjs";
 import { loadOrgManifest } from "./org/loader.mjs";
 import { pickApprovers } from "./org/approvers.mjs";
+import { waitSucceeded } from "./tx.mjs";
 
 /// Run one `bitcd` command. `parseYaml` is the yaml parser (the entry point
 /// passes the `yaml` package's `parse`, so this module needs no dependency);
@@ -230,7 +231,7 @@ export async function runBitcd({ argv = process.argv.slice(2), parseYaml, verbs 
   async function proposeId(p, call) {
     const { hash, num } = await import("starknet");
     const { transaction_hash } = await call;
-    await p.waitForTransaction(transaction_hash);
+    await waitSucceeded(p, transaction_hash, "propose");
     const rcpt = await p.getTransactionReceipt(transaction_hash);
     const sel = "0x" + hash.starknetKeccak("ProposalCreated").toString(16);
     const evs = rcpt.events ?? rcpt.value?.events ?? [];
@@ -301,12 +302,12 @@ export async function runBitcd({ argv = process.argv.slice(2), parseYaml, verbs 
     for (const s of machines) {
       const conn = c.client.bitcdContract(dep.address, c.client.account(keys[s.name], c.p));
       const { transaction_hash } = await conn.approve(id);
-      await c.p.waitForTransaction(transaction_hash);
+      await waitSucceeded(c.p, transaction_hash, `approve by ${s.name}`);
       say(`  approve: ${s.name}`);
     }
     const committer = c.client.bitcdContract(dep.address, c.client.account(keys[picked[0].name], c.p));
     const { transaction_hash } = await committer.commit(id);
-    await c.p.waitForTransaction(transaction_hash);
+    await waitSucceeded(c.p, transaction_hash, `commit of proposal #${id}`);
     say(`  commit: proposal #${id} committed`);
   }
 
