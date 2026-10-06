@@ -1,0 +1,24 @@
+{
+  "name": "bitcd-e2e",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "Process-based starknet-devnet e2e rig for bitcd: onboard (the declared dev org, e2e/bitcd.yaml, via the bitcd CLI — deploy + ceremony + renounce + manifest + diff), 3-wallet lock contention, the governed-state (S3 + verify-on-read) boundary demo, the reconcile + drift e2e, k-of-n redundancy, SNIP-12 human-approve, and dynamic escalation.",
+  "scripts": {
+    "onboard": "node scripts/onboard.mjs",
+    "contend": "node scripts/contend.mjs",
+    "store": "node scripts/store.mjs",
+    "reconcile": "node scripts/reconcile.mjs",
+    "redundancy": "node scripts/redundancy.mjs",
+    "human-approve": "node scripts/human-approve.mjs",
+    "escalate": "node scripts/escalate.mjs",
+    "demo": "node scripts/demo.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@bitcd/core": "workspace:*",
+    "starknet": "^9.0.0",
+    "yaml": "^2.5.0"
+  }
+}

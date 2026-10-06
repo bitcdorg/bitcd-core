@@ -1,0 +1,26 @@
+[package]
+name = "bitcd"
+version = "0.1.0"
+edition = "2024_07"
+license = "Apache-2.0"
+
+[dependencies]
+starknet = "2.19.0"
+openzeppelin_access = "3.0.0"
+openzeppelin_introspection = "3.0.0"
+
+[dev-dependencies]
+snforge_std = "0.62.0"
+assert_macros = "2.19.0"
+
+[cairo]
+sierra-replace-ids = true
+
+[[target.starknet-contract]]
+casm = true
+
+[tool.scarb]
+allow-prebuilt-plugins = ["snforge_std"]
+
+[scripts]
+test = "snforge test"

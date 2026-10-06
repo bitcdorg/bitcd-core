@@ -1,0 +1,50 @@
+# bitcd contract builder — Scarb 2.19.1 + Starknet Foundry 0.62.1.
+#
+# Build stage compiles the Cairo contract; the runtime stage is a tiny image
+# whose only job is to copy the compiled sierra/casm into a shared volume so
+# the node services (e2e) can declare/deploy without rebuilding.
+#
+# Versions are pinned to match contracts/Scarb.toml (Cairo edition 2024_07,
+# starknet 2.19.0 -> Sierra 1.9.0) and the toolchain row in AGENTS.md.
+
+FROM debian:bookworm-slim AS build
+
+ARG TARGETARCH
+ARG SCARB_VERSION=2.19.1
+ARG SNFORGE_VERSION=0.62.1
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl ca-certificates tar git \
+ && rm -rf /var/lib/apt/lists/*
+
+# Map TARGETARCH -> Rust triple used by the upstream release artifacts.
+RUN set -eux; \
+    case "${TARGETARCH:-$(dpkg --print-architecture)}" in \
+      amd64) TRIPLE=x86_64-unknown-linux-gnu ;; \
+      arm64) TRIPLE=aarch64-unknown-linux-gnu ;; \
+      *) echo "unsupported arch ${TARGETARCH}"; exit 1 ;; \
+    esac; \
+    curl -fsSL -o /tmp/scarb.tar.gz \
+      "https://github.com/software-mansion/scarb/releases/download/v${SCARB_VERSION}/scarb-v${SCARB_VERSION}-${TRIPLE}.tar.gz"; \
+    tar -xzf /tmp/scarb.tar.gz -C /tmp; \
+    install -m 0755 /tmp/scarb-v${SCARB_VERSION}-${TRIPLE}/bin/* /usr/local/bin/; \
+    rm -rf /tmp/scarb*; \
+    curl -fsSL -o /tmp/snf.tar.gz \
+      "https://github.com/foundry-rs/starknet-foundry/releases/download/v${SNFORGE_VERSION}/starknet-foundry-v${SNFORGE_VERSION}-${TRIPLE}.tar.gz"; \
+    tar -xzf /tmp/snf.tar.gz -C /tmp; \
+    install -m 0755 /tmp/starknet-foundry-v${SNFORGE_VERSION}-${TRIPLE}/bin/* /usr/local/bin/; \
+    rm -rf /tmp/snf* /tmp/starknet-foundry-*
+
+WORKDIR /work
+COPY contracts/Scarb.toml contracts/Scarb.lock ./
+COPY contracts/src ./src
+COPY contracts/tests ./tests
+
+RUN scarb build
+
+# Runtime stage: a tiny image whose only job is to publish the compiled
+# sierra/casm to a shared volume so the e2e rig can declare+deploy.
+FROM debian:bookworm-slim AS runtime
+COPY --from=build /work/target /artifacts-source
+WORKDIR /artifacts-source
+ENTRYPOINT ["sh", "-c", "set -e; mkdir -p /artifacts/dev; cp -f /artifacts-source/dev/bitcd_Bitcd.contract_class.json /artifacts/dev/; cp -f /artifacts-source/dev/bitcd_Bitcd.compiled_contract_class.json /artifacts/dev/; echo 'contract artifacts published to /artifacts/dev:'; ls -1 /artifacts/dev"]

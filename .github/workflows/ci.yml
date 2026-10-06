@@ -1,0 +1,101 @@
+# Minimal CI: the contract must build + pass snforge; every Node component must
+# parse and resolve its imports through the pnpm workspace (@bitcd/core); and the
+# artifacts EMBEDDED in @bitcd/core must match a fresh build of contracts/src
+# (the deep-audit gate applies to a class hash — a stale embed is a silent lie).
+# No devnet — dynamic e2e stays a local/compose concern (see AGENTS.md).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: software-mansion/setup-scarb@v1
+        with:
+          scarb-version: "2.19.1"
+      - uses: foundry-rs/setup-snfoundry@v3
+        with:
+          starknet-foundry-version: "0.62.1"
+      - run: scarb build
+        working-directory: contracts
+      - run: snforge test
+        working-directory: contracts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: corepack enable
+      - run: CI=true pnpm install --frozen-lockfile
+      - name: Embedded artifacts match this commit's contract (class-hash gate)
+        # runs in core/ so the starknet peer dep resolves (pnpm installs peers
+        # into core/node_modules, not the workspace root)
+        working-directory: core
+        run: |
+          node -e '
+            const { readFileSync } = require("node:fs");
+            import("starknet").then(({ hash }) => {
+              const fresh = JSON.parse(readFileSync("../contracts/target/dev/bitcd_Bitcd.contract_class.json", "utf8"));
+              const embedded = JSON.parse(readFileSync("artifacts/bitcd_Bitcd.contract_class.json", "utf8"));
+              const manifest = JSON.parse(readFileSync("artifacts/MANIFEST.json", "utf8"));
+              const freshHash = hash.computeContractClassHash(fresh);
+              const embeddedHash = hash.computeContractClassHash(embedded);
+              console.log("fresh   ", freshHash);
+              console.log("embedded", embeddedHash, "(manifest:", manifest.classHash + ")");
+              if (freshHash !== embeddedHash || manifest.classHash !== embeddedHash) {
+                console.error("EMBEDDED ARTIFACTS ARE STALE — run: pnpm sync-artifacts");
+                process.exit(1);
+              }
+            });
+          '
+
+  node-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: corepack enable
+      - run: CI=true pnpm install --frozen-lockfile
+      - name: Syntax-check every tracked js/mjs file
+        run: |
+          set -e
+          for f in $(git ls-files '*.mjs' '*.js'); do
+            node --check "$f"
+          done
+      - name: Import smoke tests (every @bitcd/core module loads)
+        run: |
+          node -e 'import("./core/src/protocol.mjs").then(() => console.log("core/protocol OK"))'
+          node -e 'import("./core/src/snip12.mjs").then(() => console.log("core/snip12 OK"))'
+          node -e 'import("./core/src/reconcile.mjs").then(() => console.log("core/reconcile OK"))'
+          node -e 'import("./core/src/fleet.mjs").then(() => console.log("core/fleet OK"))'
+          node -e 'import("./core/src/evidence.mjs").then(() => console.log("core/evidence OK"))'
+          node -e 'import("./core/src/events.mjs").then(() => console.log("core/events OK"))'
+          node -e 'import("./core/src/client.mjs").then(() => console.log("core/client OK"))'
+          node -e 'import("./core/src/ceremony.mjs").then(() => console.log("core/ceremony OK"))'
+          node -e 'import("./core/src/store.mjs").then(() => console.log("core/store OK"))'
+          node -e 'import("./core/src/fixtures.mjs").then(() => console.log("core/fixtures OK"))'
+          node -e 'import("./core/src/pending.mjs").then(() => console.log("core/pending OK"))'
+          node -e 'import("./core/src/cli.mjs").then(() => console.log("core/cli OK"))'
+          for m in schema invariants compile manifest loader keys lint approvers; do
+            node -e "import('./core/src/org/$m.mjs').then(() => console.log('core/org/$m OK'))"
+          done
+      - name: Unit tests (pure cores — protocol felts, SNIP-12 intent binding, reconcile/voter engines, evidence chain)
+        run: |
+          (cd core && node --test test/*.test.mjs)
+      - name: "bitcd validate: the example org and the e2e org compile clean"
+        run: |
+          node core/bin/bitcd.mjs validate core/example/bitcd.yaml
+          node core/bin/bitcd.mjs validate e2e/bitcd.yaml
+      - name: The substrate reaches into no product repo
+        run: |
+          if git grep -n 'chainops/' -- ':!*.md' ':!.github/'; then
+            echo "bitcd-core must build, test and onboard without a sibling product checkout"; exit 1
+          fi
+          if grep -n 'context: \.\.' docker-compose.yml; then
+            echo "compose builds from this repo alone"; exit 1
+          fi

@@ -1,0 +1,4 @@
+packages:
+  - core
+  - indexer
+  - e2e

@@ -1,0 +1,153 @@
+# bitcd/v1 — the bitcd-core dev org: the substrate's own devnet proof rig,
+# DECLARED rather than hand-wired. `scripts/onboard.mjs` drives @bitcd/core's
+# `bitcd` CLI over this file: deploy -> ceremony -> renounce -> the governed
+# org manifest, then `bitcd diff` as the read-back verification.
+#
+# The cast is the starknet-devnet --seed 0 deterministic cast: agent1/agent2
+# human OPERATORs on distinct operator_ids, agent3 a bot SHARING agent1's
+# operator_id (exercises max_per_operator), and the EXEC_IAM executor fleet on
+# accounts #4–#6 with distinct operator_ids.
+#
+# What each proof needs, and the surface that declares it:
+#   contend / store / human-approve[B]   tf/lock   the open-ACQUIRE lock (with an
+#                                                  equal-strength FORCE_UNLOCK) AND
+#                                                  the ONE open-SET_VALUE slot a
+#                                                  deployment may expose — the lock
+#                                                  IS the write capability: `locks.*.value`
+#   reconcile                            iam/acct  governed value + single-writer
+#                                                  attest (k=1) — an intent type
+#   redundancy / human-approve[A]        iam/prod  governed value + k-of-n attest
+#                                                  (k=2, distinct operators)
+#   escalate                             demo/preflight  min_humans 0 + the
+#                                                  summonable overseer — `values`
+# Added by construction: the constitution (sys/manifest) and the GLOBAL
+# SET_POLICY gate every DSL org carries.
+schema: bitcd/v1
+org: bitcd-core
+version: 1
+naming: literal
+ceremony:
+  renounce: true           # the point of no return — no single actor remains
+
+cast:
+  roles: [OPERATOR, EXEC_IAM]
+  signers:
+    agent1:
+      address: "0x078662e7352d062084b0010068b99288486c2d8b914f6e2a55ce945f8792c8b1"
+      human: true
+      operator: OP_A
+      role: OPERATOR
+    agent2:
+      address: "0x049dfb8ce986e21d354ac93ea65e6a11f639c1934ea253e5ff14ca62eca0f38e"
+      human: true
+      operator: OP_B
+      role: OPERATOR
+    agent3:
+      address: "0x04f348398f859a55a0c80b1446c5fdc37edb3a8478a32f10764659fc241027d3"
+      human: false
+      operator: OP_A       # shares agent1's operator — exercises max_per_operator
+      role: OPERATOR
+    exec1:                 # the executor fleet: bots on the per-domain
+      address: "0x00d513de92c16aa42418cf7e5b60f8022dbee1b4dfd81bcf03ebee079cfb5cb5"
+      human: false         # EXEC_IAM role (never a shared EXECUTOR), DISTINCT
+      operator: OP_EXEC1   # operators so k-of-n keeps diversity; exec1 doubles
+      role: EXEC_IAM       # as the single-writer (k=1) executor for iam/acct
+    exec2:
+      address: "0x01e8c6c17efa3a047506c0b1610bd188aa3e3dd6c5d9227549b65428de24de78"
+      human: false
+      operator: OP_EXEC2
+      role: EXEC_IAM
+    exec3:
+      address: "0x0557ba9ef60b52dad611d79b60563901458f2476a5c1002a8b4869fcb6654c7e"
+      human: false
+      operator: OP_EXEC3
+      role: EXEC_IAM
+
+storage:
+  bucket: bitcd-tfstate    # the e2e ministack default (@bitcd/core/store)
+  endpoint_env: BITCD_S3_ENDPOINT
+
+connectors:
+  demo-iam:                # the reconcile "provider" is an S3 object the
+    type: s3-demo          # proofs actuate + re-read by hand (iam/*/live);
+    role: EXEC_IAM         # no executor daemon runs here — the type names the
+    executors: [exec1, exec2, exec3]   # surface, the e2e scripts drive it
+    config:
+      live_prefix: iam
+    credentials: {}
+
+intent_types:
+  iam-acct:                # reconcile: DESIRED consensus-written,
+    connector: demo-iam    # OBSERVED single-writer (SET_STATUS k=1, EXEC_IAM)
+    prefix: iam/acct
+    schema: iampolicyset/v1
+    key: "iam/acct/{name}"       # the proofs use iam/acct/pset (9 + 8 <= 31)
+    params:
+      name:
+        type: name
+        label: Policy set
+        max_len: 8
+    quorum:
+      threshold: 2
+      role: OPERATOR
+      min_humans: 1
+      max_per_operator: 1
+    revoke: same
+    attest: { k: 1 }
+    summon_human: false
+    mutable: false         # the substrate proofs never amend — sealed
+    immutable_ack: true
+  iam-prod:                # high-trust: OBSERVED is k-of-n —
+    connector: demo-iam    # 2-of-EXEC_IAM, <= 1 per operator
+    prefix: iam/prod
+    schema: iampolicyset/v1
+    key: "iam/prod/{name}"
+    params:
+      name:
+        type: name
+        label: Policy set
+        max_len: 8
+    quorum:
+      threshold: 2
+      role: OPERATOR
+      min_humans: 1
+      max_per_operator: 1
+    revoke: same
+    attest: { k: 2 }
+    summon_human: false
+    mutable: false
+    immutable_ack: true
+
+locks:
+  tf-state:                # the terraform-shaped lock. ACQUIRE is open,
+    prefix: tf/lock        # paired with an equal-strength quorum
+    recovery:              # FORCE_UNLOCK — human-approve beat [B] breaks a
+      threshold: 2         # stuck lease through it
+      role: OPERATOR
+      min_humans: 1
+      max_per_operator: 1
+    value:                 # the ONE open-SET_VALUE slot a deployment may
+      schema: tfstate/v4   # expose: the lock holder writes the state digest
+      key: tf/lock/state/value    # single-writer — the store beat
+
+values:
+  preflight:               # dynamic escalation: an AGENT-AUTONOMY tier
+    prefix: demo/preflight # (min_humans 0) whose doubting predicate-agent
+    schema: preflight/v1   # summons a human via request_human_review; the
+    key: demo/preflight/cfg     # overseer lint holds a same-role human in the cast
+    quorum:
+      threshold: 2
+      role: OPERATOR
+      min_humans: 0
+      max_per_operator: 1
+    summon_human: true
+    mutable: false
+    immutable_ack: true
+
+manifest:                  # the org constitution (sys/manifest) — also sets
+  key: sys/manifest        # the GLOBAL gates (SET_ROLE and SET_POLICY at
+  quorum:                  # this strength)
+    threshold: 2
+    role: OPERATOR
+    min_humans: 1
+    max_per_operator: 1

@@ -1,0 +1,99 @@
+# bitcd-core compose stack — local validation of the substrate.
+#
+# Service graph:
+#   devnet     long-running starknet-devnet (RPC 0.10.2, accepts Sierra 1.9.0)
+#   ministack  long-running S3-compatible store holding governed state blobs
+#   builder    one-shot; publishes compiled contract artifacts to a shared volume
+#   e2e        one-shot; onboard (e2e/bitcd.yaml via the bitcd CLI) + the
+#              full substrate demo sequence
+#
+# Typical end-to-end validation:
+#   docker compose run --rm builder                  # compile contract once
+#   docker compose up -d devnet ministack            # start chain + blob store
+#   docker compose run --rm e2e                      # the full demo (every beat)
+#   docker compose down -v                           # tear down + drop volumes
+#
+# Devnet RPC port mirrors host config (BITCD_RPC defaults to :5051).
+# Inside the compose network, services dial `http://devnet:5051` regardless.
+
+name: bitcd-core
+
+services:
+  devnet:
+    image: shardlabs/starknet-devnet-rs:0.9.1
+    # Image entrypoint already injects `--host 0.0.0.0`; only override the
+    # remaining flags here (collides if --host is set again).
+    command:
+      - "--seed=0"
+      - "--port=5051"
+      - "--accounts=16"
+      - "--state-archive-capacity=full"
+    ports:
+      - "5051:5051"
+    healthcheck:
+      # devnet has no /health endpoint; round-trip starknet_chainId to confirm
+      # the JSON-RPC listener is live.
+      test: ["CMD-SHELL", "wget -q -O- --header='content-type: application/json' --post-data='{\"jsonrpc\":\"2.0\",\"method\":\"starknet_chainId\",\"params\":[],\"id\":1}' http://127.0.0.1:5051 | grep -q '\"result\"'"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 3s
+
+  ministack:
+    # S3-compatible object store (LocalStack-style) backing the governed state
+    # blobs. The chain holds only the digest + version; the bytes
+    # live here (control plane, not data plane). Any credentials work;
+    # path-style addressing is required by the AWS SDK.
+    image: ministackorg/ministack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      PERSIST_STATE: "1"
+      S3_PERSIST: "1"
+    volumes:
+      - ministack-data:/tmp/ministack-data
+    healthcheck:
+      # The image ships python3 only (no wget/curl); a 200 from the gateway root
+      # is enough to prove the emulator is serving.
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4566/')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 3s
+
+  builder:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.contracts
+    image: bitcd-contracts:dev
+    volumes:
+      - contract-build:/artifacts
+    # Entry point copies /artifacts-source/dev -> /artifacts/dev and exits.
+
+  e2e:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.e2e
+    image: bitcd-e2e:dev
+    depends_on:
+      devnet:
+        condition: service_healthy
+      builder:
+        condition: service_completed_successfully
+      ministack:
+        condition: service_healthy
+    volumes:
+      - contract-build:/work/contracts/target
+      - bitcd-state:/state
+    environment:
+      BITCD_RPC: http://devnet:5051
+      BITCD_DEPLOYMENT_FILE: /state/deployment.json
+      # store.mjs (the governed-state beat) writes the state blob to ministack S3.
+      BITCD_S3_ENDPOINT: http://ministack:4566
+      BITCD_S3_BUCKET: bitcd-tfstate
+      NO_PROXY: "localhost,127.0.0.1,0.0.0.0,devnet,ministack"
+
+volumes:
+  contract-build:
+  bitcd-state:
+  ministack-data:

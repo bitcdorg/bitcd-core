@@ -1,0 +1,49 @@
+# bitcd e2e rig — Node 22 + starknet.js v9 + AWS SDK (S3).
+# Runs scripts/{onboard,contend,store,reconcile,redundancy,human-approve,
+# escalate,demo}.mjs against the in-network devnet; store.mjs writes the state
+# blob to ministack S3. Contract artifacts come from the shared
+# `contract-build` volume mounted at /work/contracts/target; the deployment
+# record lives in /state.
+FROM node:22-bookworm-slim
+
+RUN corepack enable
+
+# pnpm workspace: ONE root lockfile covers every package. Copy the workspace
+# manifests first (layer-cache friendly), then install only this package's deps.
+WORKDIR /work
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+# Hoisted layout in images (docker-only): the workspace symlink to /work/core
+# must resolve its peer deps (starknet, @aws-sdk) from /work/node_modules —
+# pnpm 11 reads nodeLinker from pnpm-workspace.yaml, not .npmrc.
+RUN printf "\nnodeLinker: hoisted\n" >> pnpm-workspace.yaml
+COPY core/package.json core/
+COPY e2e/package.json e2e/
+COPY indexer/package.json indexer/
+RUN CI=true pnpm install --prod --frozen-lockfile --filter bitcd-e2e
+# Workspace link at the ROOT so cross-package imports resolve from any /work
+# subdir (hoisted install links workspace packages only under the filtered
+# importer; Node walks up to /work/node_modules from the real package dirs).
+RUN mkdir -p node_modules/@bitcd \
+ && ln -sfn ../../core node_modules/@bitcd/core
+
+# The workspace dep @bitcd/core is a symlink to /work/core — ship its source,
+# and the `bitcd` CLI the onboard step drives over e2e/bitcd.yaml. The
+# CLI's `yaml` import resolves by the upward walk to /work/node_modules (the
+# e2e package declares it).
+COPY core/src core/src
+COPY core/bin core/bin
+
+COPY e2e/scripts e2e/scripts
+COPY e2e/bitcd.yaml e2e/bitcd.yaml
+# core embedded artifacts: the e2e rig declares from the shared /work/contracts
+# volume when present, else falls back to the audited embed.
+COPY core/artifacts core/artifacts
+
+WORKDIR /work/e2e
+
+ENV BITCD_RPC=http://devnet:5051 \
+    BITCD_DEPLOYMENT_FILE=/state/deployment.json \
+    BITCD_S3_ENDPOINT=http://ministack:4566 \
+    BITCD_S3_BUCKET=bitcd-tfstate
+
+CMD ["node", "scripts/demo.mjs"]

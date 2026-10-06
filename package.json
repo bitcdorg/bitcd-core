@@ -1,0 +1,14 @@
+{
+  "name": "bitcd-core-workspace",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.10.0",
+  "description": "Governed etcd on Starknet — the substrate: the Cairo contract (contracts/) + the reusable @bitcd/core library (core/) + the reference read-model daemon (indexer/) + the devnet proof rig (e2e/). Product repos (agentgate, chainops, capability-ledger, console) consume @bitcd/core.",
+  "scripts": {
+    "demo": "pnpm --filter bitcd-e2e demo",
+    "test": "pnpm --filter @bitcd/core test",
+    "sync-artifacts": "node core/scripts/sync-artifacts.mjs"
+  }
+}

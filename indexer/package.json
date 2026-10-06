@@ -1,0 +1,16 @@
+{
+  "name": "bitcd-indexer",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "Off-chain materialized view. The chain is a control plane, not a query plane — queries like 'is everything Synced?' and history are answered by an off-chain projection built from the event stream (ValueChanged desired + StatusChanged observed), joined per value_key. This is where Synced/OutOfSync/Failed is DERIVED; the contract never computes it.",
+  "scripts": {
+    "view": "node src/index.mjs",
+    "watch": "node src/index.mjs --watch"
+  },
+  "dependencies": {
+    "@bitcd/core": "workspace:*",
+    "starknet": "^9.0.0"
+  }
+}

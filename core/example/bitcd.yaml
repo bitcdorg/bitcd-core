@@ -1,0 +1,119 @@
+# bitcd/v1 — a complete example org: governed k8s RBAC on a dev cluster.
+# `bitcd apply-ceremony` seeds a deployment from this file, `bitcd
+# publish-manifest` commits the compiled definition as a governed value, and
+# the chainops executor + ops-console consume that manifest.
+#
+# The cast is the starknet-devnet --seed 0 deterministic cast (agents #1–#3,
+# the bridge #7).
+schema: bitcd/v1
+org: chainops
+version: 1
+naming: literal            # every felt <= 31 chars, proven at compile
+ceremony:
+  renounce: true           # the point of no return — the prefix envelope is
+                           # sealed at ceremony: afterwards a policy can be
+                           # written only under a SET_POLICY gate seeded here
+                           # (mutable surfaces and reserved_prefixes below)
+
+cast:
+  roles: [OPERATOR, EXEC_K8S, OPS_PROPOSER]
+  signers:
+    agent1:
+      address: "0x078662e7352d062084b0010068b99288486c2d8b914f6e2a55ce945f8792c8b1"
+      human: true
+      operator: OP_A
+      role: OPERATOR
+    agent2:
+      address: "0x049dfb8ce986e21d354ac93ea65e6a11f639c1934ea253e5ff14ca62eca0f38e"
+      human: true
+      operator: OP_B
+      role: OPERATOR
+    agent3:
+      address: "0x04f348398f859a55a0c80b1446c5fdc37edb3a8478a32f10764659fc241027d3"
+      human: false
+      operator: OP_A       # shares agent1's operator — exercises max_per_operator
+      role: OPERATOR
+    k8s-bridge:
+      address: "0x003736286f1050d4ba816b4d56d15d80ca74c1752c4e847243f1da726c36e06f"
+      human: false
+      operator: OP_K8S
+      role: EXEC_K8S       # the connector's per-domain executor role
+    ops-console:
+      address: "0x014fc422bb4d42b96ff13282c6b03d7ce44e4f8da6223983a978d5247b65492d"
+      human: false
+      operator: OP_OPS
+      role: OPS_PROPOSER   # a role NO policy names: the webapp server's one
+                           # credential is propose-only BY CONSTRUCTION
+
+connectors:
+  dev-cluster:
+    type: k8s-rbac         # selects the provider factory (chainops' connectors/k8s-rbac)
+    role: EXEC_K8S
+    executors: [k8s-bridge]
+    config:                # NON-secret; published verbatim in the manifest
+      context: k3d-bitcd-rbac
+    credentials: {}        # the dev bridge uses in-cluster/default kubeconfig
+
+storage:
+  bucket: bitcd-tfstate
+  endpoint_env: BITCD_S3_ENDPOINT
+
+intent_types:
+  k8s-access:              # WHO gets WHAT for HOW LONG, gated by QUORUM
+    connector: dev-cluster
+    prefix: k8s/rbac
+    schema: k8srbacgrant/v1
+    key: "k8s/rbac/{ns}/{name}"   # worst case 10 + 6 + 13 = 29 <= 31, proven
+    params:
+      ns:
+        type: enum
+        label: Namespace
+        values: [team-a]
+      name:
+        type: name
+        label: Grant name
+        max_len: 13
+        format: key-slug
+      subject:
+        type: subject
+        label: Who
+        kinds: [User, Group, ServiceAccount]
+      pset:
+        type: enum
+        label: Permission set
+        values: [read-secrets]
+        map:                      # WHAT: named sets -> bounded provider data
+          read-secrets: { roleKind: Role, roleName: read-secrets }
+    ttl:                          # HOW LONG: executor-enforced on chain time
+      required: false
+      default: 24h
+      max: 720h
+    quorum:                       # (k8s/rbac, SET_VALUE) — a privilege grant
+      threshold: 2
+      role: OPERATOR
+      min_humans: 1               # keeps a human on the path
+      max_per_operator: 1
+    revoke: same                  # (k8s/rbac, TOMBSTONE_VALUE)
+    attest: { k: 1 }              # (k8s/rbac, SET_STATUS) — the bridge, k=1
+    summon_human: false
+    mutable: true                 # seed (k8s/rbac, SET_POLICY) for day-2
+
+reserved_prefixes:                # day-2 headroom — SET_POLICY only; the
+  - prefix: aws/iam               # quartet is proposed through governance
+    set_policy:                   # when the prefix is put to use
+      threshold: 2
+      role: OPERATOR
+      min_humans: 1
+      max_per_operator: 1
+
+baseline:
+  unmanaged: untouched            # nothing outside managed keys is touched
+  drift_scope: managed-keys
+
+manifest:                         # the compiled definition's own governance —
+  key: sys/manifest               # the org constitution (min_humans >= 1)
+  quorum:
+    threshold: 2
+    role: OPERATOR
+    min_humans: 1
+    max_per_operator: 1
