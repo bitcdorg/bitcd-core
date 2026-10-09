@@ -16,7 +16,7 @@ keys are involved.
 
 - `git` and a running Docker engine with Compose v2.
 - Ports `5051` (the devnet) and `4566` (the S3 store) free on the host. Run one
-  bitcd compose stack at a time; a sibling bitcd repo's stack uses the same ports.
+  bitcd compose stack at a time; any other bitcd stack uses the same ports.
 - Network access to GitHub, Docker Hub, Debian's package mirrors, and the
   Scarb and npm registries. Docker builds download the toolchain and dependencies;
   no host Node.js or Cairo toolchain is needed.

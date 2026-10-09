@@ -20,10 +20,9 @@ that commits**, not raw hex.
 This repo holds `contracts/` (the Cairo contract), `core/` (`@bitcd/core`, the
 reusable JS library with the embedded compiled artifacts, the org declaration
 and the `bitcd` CLI), `indexer/` (the reference read-model), and `e2e/`
-(the devnet proof rig). The product repos
-— **agentgate**, **chainops**, **capability-ledger**, **console** — are siblings
-under `bitcdorg/` and consume `@bitcd/core` from here (`link:` filesystem deps
-between side-by-side clones). Use-case code does NOT belong in this repo. An
+(the devnet proof rig). Everything use-case-shaped lives in other
+repositories and consumes `@bitcd/core` from npm, or as a `link:` dep between
+side-by-side clones for unreleased work. Use-case code does NOT belong in this repo. An
 org's *declaration* is substrate — the `bitcd/v1` schema, its compiler, the
 governed org manifest, and the `bitcd` CLI that onboards an org live in `core/`;
 what an org does under its intent types (grant envelopes, connectors,
