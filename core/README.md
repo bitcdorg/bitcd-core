@@ -1,10 +1,10 @@
 # @bitcd/core
 
-The reusable half of bitcd: everything a consumer needs to run a **governed
-key/value control plane on Starknet** — propose/approve/commit writes gated by
-on-chain quorum policy, human approvals bound to readable intent (SNIP-12),
-executors that reconcile desired state onto real infrastructure and attest what
-they observed, and a verify-on-read blob store so the chain never holds bytes.
+The reusable half of bitcd, **a governed etcd on Starknet**: everything a
+consumer needs to propose, approve and commit writes gated by on-chain quorum
+policy, bind human approvals to readable intent (SNIP-12), run executors that
+reconcile desired state onto real infrastructure and attest what they observed,
+and keep documents in a verify-on-read blob store so the chain never holds bytes.
 
 The Cairo contract itself lives in [`contracts/`](../contracts/) (a standalone
 Scarb package with a full snforge suite); this package **embeds its compiled artifacts**
@@ -12,9 +12,10 @@ Scarb package with a full snforge suite); this package **embeds its compiled art
 JS consumer can declare, deploy, and bind the contract with no Cairo toolchain.
 
 Everything demo-shaped is deliberately **not** here: devnet accounts and
-prefixes live in [`e2e/`](../e2e/); use-case schemas (Terraform state,
-k8s Lease, k8s RBAC, agentgate remediations) live in the sibling product repos —
-a schema over the primitive is the code *you* write.
+prefixes live in [`e2e/`](../e2e/). Use-case schemas (Terraform state, a
+Kubernetes lease, Kubernetes RBAC, an agent's tool allowlist) are the code
+*you* write over the primitive; the
+[`build-connector`](../skills/build-connector/SKILL.md) skill walks through one.
 
 ## Install
 

@@ -42,9 +42,8 @@ Toolchain pins and environment notes: [`AGENTS.md`](../AGENTS.md).
   onboard → contend → store → reconcile → redundancy → human-approve →
   escalate. Each step exits non-zero unless it passes.
 
-The use-case showcases (Terraform backend, k8s lease/RBAC, AWS IAM) and the
-agentgate fleet/notary proofs live in their own repos, each with its own
-harness beats.
+The connector proofs (Terraform backend, Kubernetes lease and RBAC, AWS IAM)
+and the fleet proofs live outside this repo, each with its own harness beats.
 
 TTL expiry is crossed with the `devnet_increaseTime` JSON-RPC, never wall-clock
 sleep — devnet advances block timestamps in coarse, unpredictable jumps.

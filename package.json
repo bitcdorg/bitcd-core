@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.10.0",
-  "description": "Governed etcd on Starknet — the substrate: the Cairo contract (contracts/) + the reusable @bitcd/core library (core/) + the reference read-model daemon (indexer/) + the devnet proof rig (e2e/). Product repos (agentgate, chainops, capability-ledger, console) consume @bitcd/core.",
+  "description": "A governed etcd on Starknet: the Cairo contract (contracts/), the @bitcd/core library and CLI (core/), the reference indexer (indexer/) and the devnet proof rig (e2e/).",
   "scripts": {
     "demo": "pnpm --filter bitcd-e2e demo",
     "test": "pnpm --filter @bitcd/core test",

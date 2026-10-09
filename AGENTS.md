@@ -6,14 +6,16 @@ security invariants, and the environment quirks.
 
 ## What bitcd-core is
 
-The **substrate** of bitcd, a governed `etcd` on Starknet: a key/value control
-plane whose **writes are gated by on-chain multisig policy**. The contract
-**stores and gates — it never computes business logic.** Mental model: etcd's
-API surface (key, version, watch, lease, compare-and-set) with
-**consensus-gated writes**. Starknet is the consensus layer (no Raft); events
-are the `watch` stream. Locks are the first schema over the primitive; the
-primitive itself is generic governed KV. **Humans approve readable intent
-(SNIP-12), provably bound to the calldata that commits** — not raw hex.
+The **substrate** of bitcd, a governed etcd on Starknet. Changes to
+infrastructure and agent configuration wait for sign-off under rules that live
+in a contract none of the actors can edit; executors apply what was approved
+and cannot change the decision. The contract **stores and gates; it never
+computes business logic.** Mental model: etcd's API surface (key, version,
+watch, lease, compare-and-set) with **consensus-gated writes**. Starknet is the
+consensus layer (no Raft); events are the `watch` stream. Locks are the first
+schema over the primitive; the primitive itself is generic governed KV.
+**Humans approve readable intent (SNIP-12), provably bound to the calldata
+that commits**, not raw hex.
 
 This repo holds `contracts/` (the Cairo contract), `core/` (`@bitcd/core`, the
 reusable JS library with the embedded compiled artifacts, the org declaration

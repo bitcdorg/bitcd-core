@@ -1,10 +1,10 @@
 # Contributing to bitcd
 
-Thanks for your interest. bitcd is a governed key/value control plane on
-Starknet — the contract **stores and gates, it never computes business logic**.
-Before writing code, read [`AGENTS.md`](AGENTS.md) (the golden rules and the
-security invariants) and the [`README`](README.md) for how this repo relates to
-the sibling product repos.
+Thanks for your interest. bitcd is a governed etcd on Starknet: the contract
+**stores and gates, it never computes business logic**. Before writing code,
+read [`AGENTS.md`](AGENTS.md) (the golden rules and the security invariants)
+and the [`README`](README.md) for the layout of this repo and where use-case
+code belongs.
 
 ## Ground rules (the short version)
 
@@ -37,7 +37,7 @@ one `pnpm install` at the repo root. TTL expiry in tests uses
   next to the code, rationale first. The design record lives in the `docs`
   repo (the bitcd.org site).
 - Substrate non-goals are tripwires: use-case schemas, product daemons, and UI
-  belong in the sibling repos. Scope changes go through an issue first.
+  do not belong here. Scope changes go through an issue first.
 - Never commit secrets (`*.key`, `*.pem`, `.env*`, account JSONs are
   gitignored; keep it that way).
 

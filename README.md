@@ -1,16 +1,19 @@
 # bitcd-core
 
-**A governed `etcd` on Starknet — the substrate.** A key/value control plane
-whose **writes are gated by on-chain multisig policy**. Not a database; not a
-git replacement. The contract **stores and gates — it never computes business
-logic.**
+**A governed etcd on Starknet.** Changes to infrastructure and agent
+configuration wait for sign-off under rules that live in a contract none of
+the actors can edit. Executors apply what was approved and cannot change the
+decision.
 
-Mental model: etcd's API surface (key, version, watch, lease, compare-and-set)
-with **consensus-gated writes**. Starknet is the consensus layer (no Raft),
-events are the `watch` stream, and large values live off-chain with only a
-digest on-chain (`verify-hash-on-read` makes the storage untrusted). Humans
-approve **readable intent** (SNIP-12), provably bound to the calldata that
-commits — never raw hex.
+A key/value store with versions, leases, compare-and-set and an event stream.
+A write passes its namespace's policy before it lands: a threshold, a role, a
+floor of human approvals and a cap per operator. Starknet is the consensus
+layer and events are the watch stream. A value is the fingerprint of a
+document kept off-chain, and every bitcd reader re-hashes what it fetches and
+refuses a mismatch, so the store needs no trust. People approve by signing a
+readable SNIP-12 message bound to the exact change, never raw calldata. The
+contract stores and gates; it never computes business logic. Not a database,
+not a git replacement.
 
 ## Layout
 
@@ -43,9 +46,6 @@ runs the library tests, checks the tag against the package version and
 publishes with provenance. It needs the `NPM_TOKEN` repository secret, an npm
 automation token for the `@bitcd` scope. Run it by hand (Actions → publish)
 for a dry run that packs and lists the tarball without publishing.
-Rehearse the first release as a prerelease (`0.1.0-rc.1`, tag `v0.1.0-rc.1`);
-if npm refuses provenance while the repository is private, drop
-`--provenance` from the publish step until it is public.
 
 ## Run
 
@@ -79,18 +79,16 @@ data — there is deliberately **no on-chain scripting language**, and that is
 permanent. The invariants every contract change must preserve are listed in
 [`AGENTS.md`](AGENTS.md).
 
-## Sibling repos
+## Building on it
 
-Everything use-case-shaped consumes `@bitcd/core` from here (filesystem
-`link:` deps between side-by-side clones):
-
-| Repo | What it is |
-| --- | --- |
-| `agentgate` | Peer mutual-gating agent fleets: deterministic predicate voters, pre-flight notaries, the `agentgate` CLI, and the LLM acting layer (proposes and pages — never votes). |
-| `chainops` | The reconcile executor, the intent side of the DSL (the grant envelope, request forms, `bitcd intent new` / `revoke`), and reference integrations: Terraform http-backend, k8s DR leader-lease, governed k8s RBAC, AWS IAM. |
-| `capability-ledger` | Governed agent capability & tool manifests. |
-| `console` | The cross-product management UI (per-product panels; the products themselves are headless). |
-| `docs` | The bitcd.org site — concepts, quickstart, the DSL reference, and the design record. |
+A new workflow is a namespace, a document schema and an executor over
+`@bitcd/core/reconcile`; the contract does not change. Use-case code lives
+outside this repo. The [`build-connector`](skills/build-connector/SKILL.md)
+skill walks a coding agent through an executor for a system of your own, and
+[bitcd.org/connectors](https://bitcd.org/connectors/) shows the shape with the
+connectors that exist for Terraform, AWS IAM and Kubernetes. The site itself,
+[bitcd.org](https://bitcd.org), carries the concept, the contract reference
+and the quickstart.
 
 ## Contributing
 

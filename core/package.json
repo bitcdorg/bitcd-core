@@ -1,7 +1,7 @@
 {
   "name": "@bitcd/core",
   "version": "0.1.0",
-  "description": "The bitcd library: a governed key/value control plane on Starknet. Protocol constants, the contract client and SNIP-12 approvals, the reconcile engine for executors, the fleet voter engine, the hash-chained evidence log, the verify-on-read store, the deploy ceremony, event folds, the bitcd.yaml organization declaration and the bitcd CLI, with the compiled contract embedded.",
+  "description": "The library for bitcd, a governed etcd on Starknet: protocol constants, the contract client and SNIP-12 approvals, the reconcile engine for executors, the fleet voter engine, the hash-chained evidence log, the verify-on-read store, the deploy ceremony, event folds, the bitcd.yaml organization declaration and the bitcd CLI, with the compiled contract embedded.",
   "license": "Apache-2.0",
   "type": "module",
   "repository": {
