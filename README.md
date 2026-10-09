@@ -21,6 +21,32 @@ commits — never raw hex.
 | [`indexer/`](indexer/) | The reference materialized view: folds `ValueChanged` + `StatusChanged` into "is everything `Synced`?" and the governance tally (machine vs intent-bound human approvals). Derivation is always off-chain — the contract never computes `Synced`. |
 | [`e2e/`](e2e/) | The devnet proof rig: `bitcd.yaml` (the declared dev org) onboarded through the `bitcd` CLI — deploy, ceremony, renounce, constitution, `diff` CLEAN — then PASS/FAIL beats for lock contention, governed state, reconcile, k-of-n redundancy, human approval, and escalation; one command runs them all. |
 
+## Install
+
+```bash
+npm install @bitcd/core starknet                        # the library; starknet ^9 is a peer dependency
+npm install -g @bitcd/core starknet @aws-sdk/client-s3  # the bitcd command; the SDK is for the document store
+```
+
+`@aws-sdk/client-s3` is an optional peer: `@bitcd/core/store` needs it, and
+so do the CLI commands that read or write the store (`publish-manifest`,
+`diff`, `propose-changes`); `validate` and `plan` do not. Inside this
+repository, and for unreleased work, consumers link the checkout instead:
+`"@bitcd/core": "link:../bitcd-core/core"`.
+
+## Release
+
+A version tag publishes `core/` to npm through `.github/workflows/publish.yml`:
+bump `core/package.json`, tag the commit `v<version>`, push the tag. The
+workflow rebuilds the contract, refuses embedded artifacts that drift from it,
+runs the library tests, checks the tag against the package version and
+publishes with provenance. It needs the `NPM_TOKEN` repository secret, an npm
+automation token for the `@bitcd` scope. Run it by hand (Actions → publish)
+for a dry run that packs and lists the tarball without publishing.
+Rehearse the first release as a prerelease (`0.1.0-rc.1`, tag `v0.1.0-rc.1`);
+if npm refuses provenance while the repository is private, drop
+`--provenance` from the publish step until it is public.
+
 ## Run
 
 ```bash
@@ -31,6 +57,14 @@ docker compose up -d ministack                                     # S3 blob sto
 cd e2e && node scripts/demo.mjs                                # terminal 2: every beat end-to-end
 pnpm test                                                          # pure library tests (no devnet)
 ```
+
+To run the ladder without a host toolchain, use Docker:
+`docker compose run --rm builder`, `docker compose up -d devnet ministack`,
+then `docker compose run --rm e2e`. The
+[`try-bitcd`](skills/try-bitcd/SKILL.md) skill explains the commands,
+expected output and reset procedure for a newcomer or their coding agent;
+[`build-connector`](skills/build-connector/SKILL.md) walks an agent
+through an executor over `@bitcd/core/reconcile` for a system of your own.
 
 The onboard step drives this repo's `bitcd` CLI (`core/bin/bitcd.mjs`).
 Toolchain pins and environment notes are in [`AGENTS.md`](AGENTS.md).

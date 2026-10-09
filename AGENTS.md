@@ -132,8 +132,10 @@ node core/bin/bitcd.mjs validate e2e/bitcd.yaml        # the org declaration, of
 
 `pnpm install` once at the repo root (pnpm workspace, one lockfile). The onboard
 step drives `core/bin/bitcd.mjs` (`BITCD_DSL_CLI` points it at another build)
-and needs a FRESH devnet. The compose path does the same hermetically: `docker compose run --rm builder`, `docker compose up -d
-devnet ministack`, `docker compose run --rm e2e`.
+and needs a FRESH devnet. The compose ladder runs without a host toolchain:
+`docker compose run --rm builder`, `docker compose up -d devnet ministack`,
+then `docker compose run --rm e2e`. The `try-bitcd` skill covers the expected
+output and reset procedure.
 
 **Artifact discipline:** `core/artifacts/` embeds the compiled contract;
 `MANIFEST.json` pins `classHash ↔ gitCommit`. CI rebuilds the contract and fails
@@ -181,7 +183,9 @@ indexer/        reference materialized view: folds ValueChanged+StatusChanged,
 e2e/            starknet-devnet proof rig: bitcd.yaml (the declared dev org) +
                 onboard / contend / store / reconcile / redundancy / human-approve /
                 escalate / demo — onboarded through core's own bitcd CLI
-.claude/skills/ bitcd-core-dev — the working-in-this-repo skill
+skills/         agent skills, tool-neutral: bitcd-core-dev (working in this repo),
+                try-bitcd (the Docker proof rig), build-connector (an executor
+                for a system of your own, with a runnable template)
 ```
 
 Sibling repos (each consumes `@bitcd/core` via `link:`): `../agentgate` (fleet

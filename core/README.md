@@ -16,6 +16,18 @@ prefixes live in [`e2e/`](../e2e/); use-case schemas (Terraform state,
 k8s Lease, k8s RBAC, agentgate remediations) live in the sibling product repos —
 a schema over the primitive is the code *you* write.
 
+## Install
+
+```bash
+npm install @bitcd/core starknet
+```
+
+ESM only; every import is a subpath. `starknet ^9` is a peer dependency,
+`@aws-sdk/client-s3` an optional one for `/store` and for the CLI commands that
+touch the store. The package also installs the `bitcd` command
+(`bin/bitcd.mjs`). From a checkout, depend on it by path:
+`"@bitcd/core": "link:../bitcd-core/core"`.
+
 ## Subpaths
 
 | import | what you get |

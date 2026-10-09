@@ -1,0 +1,89 @@
+# Publish @bitcd/core to npm.
+#
+# Runs on a version tag (v0.1.0 publishes core/package.json at version 0.1.0;
+# the two must agree) or by hand, where the default is a dry run that packs
+# and prints the tarball without publishing. The contract is rebuilt first so
+# a release never ships embedded artifacts that drift from contracts/src.
+#
+# Needs the NPM_TOKEN secret: an npm automation token for the @bitcd scope.
+# Provenance attestation uses the job's OIDC token (id-token: write).
+name: publish
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Pack and print, do not publish"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: software-mansion/setup-scarb@v1
+        with:
+          scarb-version: "2.19.1"
+      - uses: foundry-rs/setup-snfoundry@v3
+        with:
+          starknet-foundry-version: "0.62.1"
+      - run: scarb build
+        working-directory: contracts
+      - run: snforge test
+        working-directory: contracts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+      - run: corepack enable
+      - run: CI=true pnpm install --frozen-lockfile
+
+      - name: Embedded artifacts match this commit's contract (class-hash gate)
+        working-directory: core
+        run: |
+          node -e '
+            const { readFileSync } = require("node:fs");
+            import("starknet").then(({ hash }) => {
+              const fresh = JSON.parse(readFileSync("../contracts/target/dev/bitcd_Bitcd.contract_class.json", "utf8"));
+              const embedded = JSON.parse(readFileSync("artifacts/bitcd_Bitcd.contract_class.json", "utf8"));
+              const manifest = JSON.parse(readFileSync("artifacts/MANIFEST.json", "utf8"));
+              const freshHash = hash.computeContractClassHash(fresh);
+              const embeddedHash = hash.computeContractClassHash(embedded);
+              if (freshHash !== embeddedHash || manifest.classHash !== embeddedHash) {
+                console.error("EMBEDDED ARTIFACTS ARE STALE — run: pnpm sync-artifacts");
+                process.exit(1);
+              }
+              console.log("class hash", embeddedHash);
+            });
+          '
+
+      - name: Library tests
+        run: pnpm test
+
+      - name: The tag names the package version
+        if: github.ref_type == 'tag'
+        run: |
+          v="$(node -p 'require("./core/package.json").version')"
+          [ "${GITHUB_REF_NAME}" = "v${v}" ] || { echo "tag ${GITHUB_REF_NAME} but core/package.json is ${v}"; exit 1; }
+
+      - name: Pack (what the registry would receive)
+        working-directory: core
+        run: |
+          pnpm pack --pack-destination ../dist
+          tar -tzf ../dist/*.tgz | sort
+
+      - name: Publish
+        if: github.ref_type == 'tag' || inputs.dry_run == false
+        working-directory: core
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm publish --access public --provenance --no-git-checks

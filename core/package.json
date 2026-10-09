@@ -1,12 +1,39 @@
 {
   "name": "@bitcd/core",
   "version": "0.1.0",
+  "description": "The bitcd library: a governed key/value control plane on Starknet. Protocol constants, the contract client and SNIP-12 approvals, the reconcile engine for executors, the fleet voter engine, the hash-chained evidence log, the verify-on-read store, the deploy ceremony, event folds, the bitcd.yaml organization declaration and the bitcd CLI, with the compiled contract embedded.",
   "license": "Apache-2.0",
-  "private": true,
   "type": "module",
-  "description": "bitcd core library — the reusable half of the governed-KV control plane: protocol constants, contract client + SNIP-12 intent signing, the reconcile engine (executor), the fleet voter engine + peer-daemon shell, the hash-chained evidence log, the verify-on-read blob store, the deploy/bootstrap ceremony, the event-stream folds, and the org declaration: the bitcd/v1 schema and its compiler, the governed org manifest (orgmanifest/v1) with its verify-on-read loader, the proposal side channel, and the bitcd CLI (bin/bitcd.mjs). The Cairo contract itself lives in contracts/ (a standalone Scarb package); this package embeds its compiled artifacts. Demo fixtures, devnet accounts, and use-case schemas deliberately live OUTSIDE this package (e2e/, and the sibling product repos).",
-  "scripts": {
-    "test": "node --test test/*.test.mjs"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bitcdorg/bitcd-core.git",
+    "directory": "core"
+  },
+  "homepage": "https://bitcd.org",
+  "bugs": {
+    "url": "https://github.com/bitcdorg/bitcd-core/issues"
+  },
+  "keywords": [
+    "bitcd",
+    "starknet",
+    "governance",
+    "gitops",
+    "reconcile",
+    "snip-12",
+    "multisig"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "src",
+    "bin",
+    "artifacts",
+    "example",
+    "README.md"
+  ],
+  "bin": {
+    "bitcd": "bin/bitcd.mjs"
   },
   "exports": {
     "./client": "./src/client.mjs",
@@ -31,17 +58,22 @@
     "./pending": "./src/pending.mjs",
     "./cli": "./src/cli.mjs"
   },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "yaml": "^2.5.0"
+  },
   "peerDependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
-    "starknet": "^9.0.0",
-    "yaml": "^2.5.0"
+    "starknet": "^9.0.0"
   },
   "peerDependenciesMeta": {
     "@aws-sdk/client-s3": {
       "optional": true
-    },
-    "yaml": {
-      "optional": true
     }
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
